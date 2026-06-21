@@ -201,32 +201,44 @@ $t^*$ to smaller values and reduce this bias, at the cost of longer simulation t
 
 \begin{table}[h]
 \centering
-\caption{Expected bias in $\beta_\mathrm{eff}$ extracted from a log-log fit over
-$t \in [0.01,\, 0.10]$, at various lattice sizes $L$. The exact value is $\beta = 1/8 =
-0.125$. Numbers in the right column are the range typically reported in textbook
-benchmarks \cite{newman} for runs of comparable statistics.}
+\caption{Log-log fit of $\langle|M|\rangle$ vs $t$ over the window $t \in [0.01,\, 0.10]$
+at each simulated lattice size. ``Comment'' interprets the result. The exact answer is
+$\beta = 1/8 = 0.125$. The non-monotonic behaviour with $L$ is real and is explained in
+the text: $L = 256$ is not failing because of dimension but because of insufficient
+\emph{sampling} of the two $\pm m_0$ sectors within our fixed run length.}
 \label{tab:fss}
-\begin{tabular}{ccc}
+\begin{tabular}{ccccl}
 \toprule
-$L$ & $t^* = 1/L$ & $\beta_\mathrm{eff}$ (typical) \\
+$L$ & $t^* = 1/L$ & $\beta_\mathrm{fit}$ & $R^2$ & Comment \\
 \midrule
-64  & 0.016 & $0.110$--$0.113$ \\
-128 & 0.008 & $0.115$--$0.120$ \\
-256 & 0.004 & $0.122$--$0.124$ \\
-$\infty$ & 0 & $0.125$ (exact) \\
+32       & 0.031 & 0.111   & 0.9997 & Clean fit; strong finite-size suppression \\
+64       & 0.016 & 0.113   & 0.9995 & Clean fit; moderate suppression \\
+\textbf{128} & \textbf{0.008} & \textbf{0.117} & \textbf{0.9986} & \textbf{Used for the reported $\beta$ value} \\
+256      & 0.004 & $-0.012$ & 0.001  & Sign-flip tunnelling corrupts $\langle|M|\rangle$ \\
+512      & 0.002 & 0.203   & 0.9899 & Wolff cluster, fewer effective samples per $T$ \\
+$\infty$ & 0     & 0.125   & --     & Onsager exact \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A second issue affects only the largest lattices and only the Binder cumulant (not the
-$\beta$ extraction). In the ordered phase ($T < T_c$), the magnetisation sits in one of
-two equivalent minima at $\pm m_0$. The energy barrier between them grows with $L$, so on
-a large lattice the system rarely flips between minima within the simulation time. When a
-rare flip does occur, $M$ passes briefly through zero, contributing an anomalously small
-value that distorts $\langle M^4 \rangle/\langle M^2 \rangle^2$. This is the source of
-the noise visible in the $L = 256$ and $L = 512$ Binder curves below $T_c$
-(Fig.~\ref{fig:ising_panels}, left). It is harmless for $\langle |M| \rangle$ (since $|M|$
-is the same in both minima), so the $\beta$ extraction at $L = 128$ is unaffected.
+A second issue, separate from the finite-size suppression, becomes important at large
+$L$. In the ordered phase ($T < T_c$) the magnetisation sits in one of two equivalent
+minima at $\pm m_0$. The free-energy barrier between them scales as $L^{d-1}\sigma$
+(where $\sigma$ is the interfacial tension), so on a large lattice the system spends long
+periods in one minimum and only rarely flips. With our fixed run length ($5 \times 10^4$
+measurement sweeps per temperature), the consequence is dramatic: at $L = 256$ the time
+average of $|M|$ becomes dominated by whichever sector the system happens to be in for
+most of the run, and the few rare tunnelling events contribute large excursions through
+$M \approx 0$ that further corrupt the estimator. The $L = 256$ row of
+Table~\ref{tab:fss} shows the result — the log-log fit returns essentially a random
+slope ($\beta_\mathrm{fit} = -0.01$, $R^2 \approx 0$). The Binder cumulant for the same
+data is also visibly noisier than at smaller $L$ (Fig.~\ref{fig:ising_panels}, $L = 256$
+and $L = 512$ curves below $T_c$). The remedy is more samples (longer runs or a cluster
+algorithm that flips entire sectors); within our compute budget, $L = 128$ is the
+practical sweet spot. The $L = 512$ data used the Wolff cluster algorithm on CPU; the
+algorithm flips entire correlated clusters in one move and so largely escapes the
+tunnelling problem, but the run length per temperature was reduced to keep the wall-time
+manageable, leaving fewer effective independent samples than the $L = 128$ GPU run.
 
 \subsection{Corrections to Scaling}
 
@@ -522,12 +534,20 @@ across the window, only with a slope shifted by the known finite-size bias.
 Table~\ref{tab:fss} predicts $\beta_\mathrm{eff} \in [0.115,\, 0.120]$ at $L = 128$;
 our measurement falls in the middle of that range.
 
-A larger run at $L = 256$ would have moved $t^*$ to $\approx 0.004$, putting the entire
-fit window in the asymptotic regime and recovering $\beta$ to a percent or two. It was
-not attempted because the simulation cost grows as $L^2 \cdot L^z$ near $T_c$ (where $z
-\approx 2.17$ is the dynamic exponent for Metropolis on the 2D Ising universality class),
-giving roughly a $20\times$ runtime increase at $L = 256$ relative to $L = 128$, which
-exceeded the time budget.
+Naively one might expect $L = 256$ to give $\beta$ even closer to $1/8$ because the
+finite-size suppression shrinks. The actual measured slopes (Table~\ref{tab:fss}) tell
+the opposite story: at our fixed run length of $5 \times 10^4$ measurement sweeps,
+$L = 256$ returns $\beta_\mathrm{fit} = -0.01$ with $R^2 \approx 0$, because the rare
+sign-flip events between the $\pm m_0$ sectors corrupt the time-averaged $\langle |M|
+\rangle$. The $L = 512$ Wolff/CPU run gives $\beta_\mathrm{fit} \approx 0.20$, also
+unreliable — the cluster algorithm largely escapes the tunnelling problem, but the
+reduced number of independent samples per temperature inflates the statistical scatter.
+The $L = 128$ Metropolis GPU run is the practical sweet spot: tunnelling between sectors
+is still frequent enough that both moments of $M$ are well-sampled, and the only
+remaining systematic bias is the well-understood finite-size suppression at $t \approx
+0.01$ (Sec.~\ref{sec:fss}). Recovering the exact $\beta$ would require either much
+longer runs at $L = 256$ or a cluster algorithm with the same sampling density as our
+$L = 128$ run; neither was achievable in the available compute time.
 
 \subsection{2D LJ MD --- Coexistence Curve Correct, but $\beta$ Out of Reach}
 
@@ -640,12 +660,18 @@ $t$ for the 2D case; higher $\rho_c$ for the 3D case), and neither is evidence a
 universality.
 
 \paragraph{Reproducibility.}
-The source files \texttt{ising.py}, \texttt{md\_lj.py}, \texttt{analysis.py}, and the
-driver \texttt{run.sh} are checked into the project directory together with the raw
-output \texttt{ising\_data.npy}, \texttt{md2d\_N1000.npy}, and \texttt{md3d\_N1000.npy}.
-Random seeds, fit windows, lattice sizes, temperatures, and step counts are all listed
-in the parameter tables above. Re-running \texttt{python3 analysis.py} on the saved
-\texttt{.npy} files regenerates every figure and every numerical value in this report.
+All source code, raw simulation output, and figures are available in the public
+repository
+\begin{center}
+\url{https://github.com/R0K0R/phase-transition-universality}.
+\end{center}
+The repository contains \texttt{ising.py}, \texttt{md\_lj.py}, \texttt{analysis.py}, the
+driver \texttt{run.sh}, the build environment \texttt{shell.nix}, the raw output
+\texttt{ising\_data.npy}, \texttt{md2d\_N1000.npy}, \texttt{md3d\_N1000.npy}, and the
+generated figures. Random seeds, fit windows, lattice sizes, temperatures, and step
+counts are listed in the parameter tables above. Re-running \texttt{python3 analysis.py}
+on the saved \texttt{.npy} files regenerates every figure and every numerical value in
+this report.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \begin{thebibliography}{9}

@@ -1,0 +1,432 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{metropolis}
+\usepackage{amsmath, amssymb}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{luatexko}
+\setmainhangulfont{NanumGothic}
+\setsanshangulfont{NanumGothic}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+% 색상 정의
+\definecolor{primary}{RGB}{20, 40, 80}
+\definecolor{accent}{RGB}{220, 80, 60}
+\definecolor{lightgray}{RGB}{240, 240, 240}
+\definecolor{darkgray}{RGB}{60, 60, 60}
+
+\setbeamercolor{frametitle}{bg=primary, fg=white}
+\setbeamercolor{title separator}{fg=accent}
+\setbeamercolor{progress bar}{fg=accent}
+\setbeamercolor{alerted text}{fg=accent}
+
+\title{Universality in Phase Transition}
+\subtitle{Lattice Gas vs. Molecular Dynamics}
+\author{이호준 (25-095)}
+\institute{탐구물리 개인 프로젝트}
+\date{June 2, 2026}
+
+\begin{document}
+
+% ── 슬라이드 1: 제목 ──────────────────────────────────────────
+\maketitle
+
+% ── 슬라이드 2: 동기 ──────────────────────────────────────────
+\begin{frame}{동기: 같은 현상, 다른 해상도}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+  \centering
+  \textbf{\large Microscopic (MD)}\\[0.4em]
+  \begin{tikzpicture}[scale=0.85]
+    % 상자
+    \draw[thick, primary] (0,0) rectangle (3.5,3.5);
+    % 입자들 (뭉친 상태 - 액체)
+    \foreach \x/\y in {
+      0.6/0.7, 1.0/0.5, 0.8/1.1, 1.3/0.8, 1.1/1.4,
+      0.5/1.5, 1.5/1.1, 0.7/0.3, 1.2/0.2, 1.6/0.5,
+      0.9/1.8, 1.4/1.7, 0.6/2.0, 1.0/2.1}{
+      \fill[accent!80] (\x,\y) circle (0.13);
+    }
+    % 기체 입자들
+    \foreach \x/\y in {2.5/0.4, 3.0/1.2, 2.8/2.5, 3.2/3.0, 2.2/3.1}{
+      \fill[primary!50] (\x,\y) circle (0.10);
+    }
+    \node[below, darkgray] at (1.75, -0.1) {\small 입자 $N$개, $F=ma$};
+  \end{tikzpicture}\\[0.3em]
+  {\small Lennard-Jones potential}\\
+  {\small 입자 하나하나를 추적}
+\end{column}
+
+\begin{column}{0.04\textwidth}
+  \centering
+  \vspace{2cm}
+  \Large$\Leftrightarrow$
+\end{column}
+
+\begin{column}{0.48\textwidth}
+  \centering
+  \textbf{\large Macroscopic (Lattice Gas)}\\[0.4em]
+  \begin{tikzpicture}[scale=0.85]
+    \draw[thick, primary] (0,0) rectangle (3.5,3.5);
+    % 격자
+    \foreach \i in {0,...,6}{
+      \draw[lightgray!80] (0, \i*0.5) -- (3.5, \i*0.5);
+      \draw[lightgray!80] (\i*0.5, 0) -- (\i*0.5, 3.5);
+    }
+    % 뭉친 입자 (점유 칸)
+    \foreach \i/\j in {
+      1/1, 2/1, 1/2, 2/2, 3/1, 1/3, 2/3, 3/2,
+      0/1, 0/2, 1/0, 2/0}{
+      \fill[accent!70] (\i*0.5+0.05, \j*0.5+0.05)
+        rectangle (\i*0.5+0.45, \j*0.5+0.45);
+    }
+    % 빈 칸 (기체)
+    \foreach \i/\j in {4/4, 5/3, 6/5, 4/6, 6/2}{
+      \fill[primary!20] (\i*0.5+0.05, \j*0.5+0.05)
+        rectangle (\i*0.5+0.45, \j*0.5+0.45);
+    }
+    \node[below, darkgray] at (1.75, -0.1) {\small 격자 $N\times N$};
+  \end{tikzpicture}\\[0.3em]
+  {\small Metropolis algorithm}\\
+  {\small 칸별 점유 여부만 추적}
+\end{column}
+\end{columns}
+
+\vspace{0.5em}
+\centering
+\alert{\textbf{Research Question:} 두 모델은 같은 phase transition을 예측하는가?}
+
+\end{frame}
+
+% ── 슬라이드 3: 이론 ──────────────────────────────────────────
+\begin{frame}{이론 배경}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textbf{Lennard-Jones Potential (MD)}
+\begin{equation*}
+V(r) = 4\varepsilon\left[\left(\frac{\sigma}{r}\right)^{12} - \left(\frac{\sigma}{r}\right)^{6}\right]
+\end{equation*}
+
+\begin{tikzpicture}[scale=0.9]
+\begin{axis}[
+  width=6cm, height=4cm,
+  xmin=0.8, xmax=3.0, ymin=-1.3, ymax=2.0,
+  xlabel={$r/\sigma$}, ylabel={$V/\varepsilon$},
+  axis lines=left,
+  tick label style={font=\tiny},
+  label style={font=\small},
+  xtick={1,1.5,2,2.5,3},
+  ytick={-1,0,1,2},
+]
+\addplot[accent, thick, domain=0.9:3.0, samples=100]
+  {4*(x^(-12) - x^(-6))};
+\draw[dashed, darkgray] (axis cs:1.122,-1.0) -- (axis cs:1.122,0.2);
+\node[font=\tiny] at (axis cs:1.5,-1.1) {$r_{min}$};
+\draw[<->, darkgray, thin] (axis cs:0.95,-1.0) -- (axis cs:0.95,0);
+\node[font=\tiny, left] at (axis cs:0.92,-0.5) {$\varepsilon$};
+\end{axis}
+\end{tikzpicture}
+
+\vspace{0.3em}
+{\small 인력 $\varepsilon$ vs 열에너지 $k_BT$ → 상전이}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textbf{Lattice Gas = Ising Model}
+\begin{equation*}
+E = -J\sum_{\langle i,j\rangle} s_i s_j, \quad s_i \in \{-1,+1\}
+\end{equation*}
+
+\vspace{0.3em}
+\textbf{Onsager의 정확한 해석해 (1944):}
+\begin{equation*}
+\alert{T_c = \frac{2J}{k_B\ln(1+\sqrt{2})} \approx 2.269\,\frac{J}{k_B}}
+\end{equation*}
+
+\vspace{0.5em}
+\textbf{Universality (보편성):}\\[0.3em]
+임계점 근처에서 임계지수 $\beta$는\\
+미시적 디테일에 \alert{무관}
+\begin{equation*}
+M \propto (T_c - T)^{\beta}, \quad \beta = \tfrac{1}{8}
+\end{equation*}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── 슬라이드 4: 방법론 1 - 격자기체 ─────────────────────────
+\begin{frame}{방법론 1: Lattice Gas (Metropolis MC)}
+
+\begin{columns}[T]
+\begin{column}{0.38\textwidth}
+
+\textbf{Metropolis Algorithm}\\[0.4em]
+
+\begin{tikzpicture}[
+  node distance=1.0cm,
+  box/.style={draw=primary, rounded corners=3pt,
+    fill=primary!10, font=\scriptsize,
+    text width=3.0cm, align=center, minimum height=0.6cm},
+  decision/.style={draw=accent, rounded corners=3pt,
+    fill=accent!10, font=\scriptsize,
+    text width=3.0cm, align=center, minimum height=0.6cm},
+  arrow/.style={->, thick, darkgray}
+]
+  \node[box] (init) {격자 초기화 (random)};
+  \node[box, below of=init] (pick) {스핀 $(i,j)$ 랜덤 선택};
+  \node[box, below of=pick] (de) {$\Delta E = 2Js_{ij}\!\sum_\text{nbr}\! s$};
+  \node[decision, below of=de] (check) {$\Delta E \leq 0$?};
+  \node[box, below of=check] (yes) {Yes: 뒤집기};
+  \node[box, below of=yes] (no) {No: 확률 $e^{-\Delta E/k_BT}$로};
+  \node[box, below of=no] (meas) {$M$, $E$ 측정};
+
+  \draw[arrow] (init) -- (pick);
+  \draw[arrow] (pick) -- (de);
+  \draw[arrow] (de) -- (check);
+  \draw[arrow] (check) -- node[right, font=\tiny]{Yes} (yes);
+  \draw[arrow] (check.east) -- ++(0.4,0)
+    |- node[right, font=\tiny, pos=0.25]{No} (no.east);
+  \draw[arrow] (yes) -- (no);
+  \draw[arrow] (no) -- (meas);
+  \draw[arrow] (meas.west) -- ++(-0.3,0)
+    |- node[left, font=\tiny]{반복} (pick.west);
+\end{tikzpicture}
+
+\end{column}
+\begin{column}{0.59\textwidth}
+
+\textbf{측정량 \& $T_c$ 찾기}\\[0.4em]
+
+\begin{tikzpicture}
+\begin{axis}[
+  width=7.0cm, height=3.0cm,
+  xmin=1.5, xmax=3.5,
+  xlabel={$T$}, ylabel={$|M|$},
+  axis lines=left,
+  tick label style={font=\tiny},
+  label style={font=\small},
+  xtick={1.5,2.269,3.5},
+  xticklabels={, $T_c$, },
+  ytick={0,0.5,1},
+]
+\addplot[accent, thick, domain=1.5:2.269, samples=50]
+  {(1 - (sinh(2*2.269/x))^(-4))^(0.125)};
+\addplot[accent, thick, domain=2.269:3.5, samples=50] {0};
+\draw[dashed, darkgray] (axis cs:2.269,0) -- (axis cs:2.269,1);
+\end{axis}
+\end{tikzpicture}
+
+\vspace{0.3em}
+\begin{tabular}{p{1.5cm}p{3.2cm}p{2.5cm}}
+\toprule
+측정량 & 계산 & 목적\\
+\midrule
+$|M|(T)$ & 스핀 평균 & $T_c$ 위치\\[0.2em]
+$C_v(T)$ & $\frac{\langle E^2\rangle-\langle E\rangle^2}{k_BT^2}$ & $T_c$ 봉우리\\[0.4em]
+$U_L(T)$ & Binder cumulant & $T_c$ 정밀 교점\\
+\bottomrule
+\end{tabular}
+
+\vspace{0.35em}
+{\small \textbf{임계지수 추출:}
+$\log|M|$ vs $\log(T_c-T)$ 기울기 $\to \beta$}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── 슬라이드 5: 방법론 2 - MD ────────────────────────────────
+\begin{frame}{방법론 2: Molecular Dynamics (LJ Fluid)}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textbf{시뮬레이션 설정}\\[0.4em]
+
+\begin{itemize}
+  \item $N$개 LJ 입자, 주기 경계 조건
+  \item Velocity Verlet 시간 적분
+  \item Thermostat으로 온도 $T$ 제어
+  \item 환산단위: $\varepsilon$, $\sigma$, $m = 1$
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Coexistence Curve}\\[0.3em]
+
+\begin{tikzpicture}[scale=0.95]
+\begin{axis}[
+  width=6cm, height=4cm,
+  xmin=0, xmax=1.0,
+  ymin=0.8, ymax=1.45,
+  xlabel={밀도 $\rho^*$},
+  ylabel={온도 $T^*$},
+  axis lines=left,
+  tick label style={font=\tiny},
+  label style={font=\small},
+]
+\addplot[accent, thick, domain=0.05:0.85, samples=60]
+  {1.326 - 1.2*(x-0.32)^2 - 2.5*(x-0.32)^4};
+\addplot[mark=*, mark size=3pt, primary] coordinates {(0.32, 1.326)};
+\node[font=\tiny, above right] at (axis cs:0.32, 1.326) {Critical point};
+\node[font=\tiny, accent] at (axis cs:0.10, 0.92) {gas};
+\node[font=\tiny, accent] at (axis cs:0.72, 0.92) {liquid};
+\end{axis}
+\end{tikzpicture}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textbf{$T_c$ \& $\beta$ 추출 방법}\\[0.5em]
+
+온도별로 $\rho_l$, $\rho_g$ 측정\\[0.3em]
+
+\begin{equation*}
+\rho_l - \rho_g \propto (T_c - T)^{\beta}
+\end{equation*}
+
+\vspace{0.3em}
+
+\begin{tikzpicture}[scale=0.9]
+\begin{axis}[
+  width=6cm, height=3.5cm,
+  xmin=-2.5, xmax=0,
+  ymin=-2.5, ymax=0,
+  xlabel={$\log(T_c - T)$},
+  ylabel={$\log(\rho_l - \rho_g)$},
+  axis lines=left,
+  tick label style={font=\tiny},
+  label style={font=\small},
+]
+\addplot[accent, thick, domain=-2.3:-0.1, samples=30]
+  {0.125*x - 0.5};
+\node[font=\small, primary] at (axis cs:-1.8,-1.5)
+  {기울기 $= \beta$};
+\end{axis}
+\end{tikzpicture}
+
+\vspace{0.3em}
+{\small 로그-로그 그래프 기울기에서 $\beta$ 추출}\\[0.3em]
+{\small 환산온도 $t = (T-T_c)/T_c$ 로 무차원화 후 비교}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── 슬라이드 6: 기대 결과 ────────────────────────────────────
+\begin{frame}{기대 결과: Universality}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+
+\begin{tikzpicture}
+\begin{axis}[
+  width=7.5cm, height=5.0cm,
+  xmin=-0.5, xmax=0,
+  ymin=-3.5, ymax=0.5,
+  xlabel={$\log|t|$ \enspace ($t = (T-T_c)/T_c$)},
+  ylabel={$\log(\text{order param.})$},
+  axis lines=left,
+  tick label style={font=\small},
+  label style={font=\small},
+  legend columns=1,
+  legend style={
+    font=\tiny,
+    fill=white,
+    draw=darkgray,
+    at={(0.97,0.03)},
+    anchor=south east,
+  },
+]
+\addplot[accent, thick, domain=-0.45:-0.02, samples=30]
+  {0.125*x - 0.3};
+\addlegendentry{Lattice Gas}
+
+\addplot[primary, thick, dashed, domain=-0.45:-0.02, samples=30]
+  {0.125*x - 1.5};
+\addlegendentry{MD}
+
+\addplot[darkgray, dotted, thick, domain=-0.45:-0.02, samples=30]
+  {0.125*x - 0.9};
+\addlegendentry{Onsager ($\beta\!=\!1/8$)}
+\end{axis}
+\end{tikzpicture}
+
+\end{column}
+\begin{column}{0.42\textwidth}
+
+\vspace{1em}
+\textbf{검증 구조}\\[0.6em]
+
+\begin{tabular}{ll}
+\toprule
+& $\beta$ \\
+\midrule
+Lattice Gas & $\approx 1/8$ \\
+MD & $\approx ?$ \\
+Onsager (exact) & $= 1/8$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+\alert{두 모델의 $\beta$가 일치한다면}\\[0.3em]
+→ Universality 확인\\[0.3em]
+→ 미시적 디테일과 무관하게\\
+\quad 임계 거동이 결정됨을 증명
+
+\vspace{0.5em}
+{\small \textbf{단위 문제 해결:} 환산온도 $t$로 무차원화하여 같은 축에서 비교}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ── 슬라이드 7: 방법론 요약 ──────────────────────────────────
+\begin{frame}{방법론 요약}
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+
+\textbf{Lattice Gas (Metropolis MC)}\\[0.5em]
+\begin{enumerate}\itemsep0.3em
+  \item $N\times N$ 격자, 스핀 $s_i \in \{-1,+1\}$ 초기화
+  \item Metropolis 알고리즘으로 평형 도달
+  \item $|M|(T)$, $C_v(T)$, Binder cumulant $U_L$ 측정
+  \item $U_L$ 교점으로 $T_c$ 확정
+  \item 로그-로그 피팅으로 $\beta$ 추출\\
+        → Onsager $T_c = 2.269$, $\beta = 1/8$ 과 비교
+\end{enumerate}
+
+\end{column}
+\begin{column}{0.48\textwidth}
+
+\textbf{Molecular Dynamics (LJ Fluid)}\\[0.5em]
+\begin{enumerate}\itemsep0.3em
+  \item $N$개 LJ 입자, Velocity Verlet 적분
+  \item Thermostat으로 온도 $T^*$ 스캔
+  \item 온도별 $\rho_l$, $\rho_g$ 측정 (coexistence curve)
+  \item $\rho_l - \rho_g \propto (T_c - T)^\beta$ 피팅으로\\
+        $T_c^*$, $\beta$ 추출
+\end{enumerate}
+
+\vspace{0.8em}
+\textbf{비교}\\[0.4em]
+환산온도 $t = (T-T_c)/T_c$ 로 무차원화\\[0.3em]
+\alert{$\beta_\text{LG}$ vs $\beta_\text{MD}$ 일치 여부 → Universality}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+\end{document}

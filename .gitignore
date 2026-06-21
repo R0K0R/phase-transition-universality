@@ -1,0 +1,27 @@
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.bbl
+*.blg
+.auctex-auto/
+
+# Editor / OS
+.DS_Store
+*.swp
+__pycache__/
+*.pyc
+
+# Deployment / internal (NOT pushed publicly)
+deploy.sh
+deploy.log
+.done
+CLAUDE.md
+logs/
+gemma-claude
+Individual_Project_Spring2026.pdf
+
+# Claude Code internals
+.claude/
